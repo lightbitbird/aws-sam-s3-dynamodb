@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  aws-sam-s3-dynamodb
+
+  SAM Template for aws-sam-s3-dynamodb
+
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  DetectTextInImageFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.8
+      CodeUri: src/
+      Handler: app.lambda_handler
+      MemorySize: 512
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref "ResultsTable"
+      Events:
+        BucketEvent1:
+          Type: S3
+          Properties:
+            Bucket: !Ref "SourceImageBucket"
+            Events:
+              - "s3:ObjectCreated:*"
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "s3:GetObject"
+              Resource: "arn:aws:s3:::*"
+            - Effect: Allow
+              Action:
+                - "rekognition:DetectText"
+                - "rekognition:DetectLabels"
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - "dynamodb:GetItem"
+                - "dynamodb:PutItem"
+                - "dynamodb:Scan"
+                - "dynamodb:UpdateItem"
+              Resource:
+                "Fn::Join":
+                  - ""
+                  - - "arn:aws:dynamodb:"
+                    - !Ref "AWS::Region"
+                    - ":"
+                    - !Ref "AWS::AccountId"
+                    - ":table/"
+                    - !Ref "ResultsTable"
+
+
+  SourceImageBucket:
+    Type: "AWS::S3::Bucket"
+
+  ResultsTable:
+    Type: "AWS::Serverless::SimpleTable"
+
+
+Outputs:
+#  HelloWorldApi:
+#    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+#    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt DetectTextInImageFunction.Arn
+#  HelloWorldFunctionIamRole:
+#    Description: "Implicit IAM Role created for Hello World function"
+#    Value: !GetAtt HelloWorldFunctionRole.Arn
